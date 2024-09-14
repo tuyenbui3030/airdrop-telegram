@@ -10,10 +10,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
-	"time"
 )
 
 // API response structures
@@ -62,6 +60,62 @@ type GamePlayResponse struct {
 type GameClaimPayload struct {
 	GameID string `json:"gameId"`
 	Points int    `json:"points"`
+}
+
+type Task struct {
+	ID                   string              `json:"id"`
+	Kind                 string              `json:"kind"`
+	Type                 string              `json:"type"`
+	Status               string              `json:"status"`
+	ValidationType       string              `json:"validationType"`
+	IconFileKey          string              `json:"iconFileKey"`
+	BannerFileKey        *string             `json:"bannerFileKey,omitempty"`
+	Title                string              `json:"title"`
+	ProductName          *string             `json:"productName,omitempty"`
+	Description          *string             `json:"description,omitempty"`
+	Reward               string              `json:"reward"`
+	SubTasks             []SubTask           `json:"subTasks,omitempty"`
+	ProgressTarget       *ProgressTarget     `json:"progressTarget,omitempty"`
+	SocialSubscription   *SocialSubscription `json:"socialSubscription,omitempty"`
+	IsHidden             bool                `json:"isHidden"`
+	IsDisclaimerRequired bool                `json:"isDisclaimerRequired"`
+}
+
+type SubTask struct {
+	ID                   string              `json:"id"`
+	Kind                 string              `json:"kind"`
+	Type                 string              `json:"type"`
+	Status               string              `json:"status"`
+	ValidationType       string              `json:"validationType"`
+	IconFileKey          string              `json:"iconFileKey"`
+	Title                string              `json:"title"`
+	ProductName          *string             `json:"productName,omitempty"`
+	Reward               string              `json:"reward"`
+	SocialSubscription   *SocialSubscription `json:"socialSubscription,omitempty"`
+	IsDisclaimerRequired bool                `json:"isDisclaimerRequired"`
+}
+
+type SocialSubscription struct {
+	OpenInTelegram bool   `json:"openInTelegram"`
+	URL            string `json:"url"`
+}
+
+type ProgressTarget struct {
+	Target   string `json:"target"`
+	Progress string `json:"progress"`
+	Accuracy int    `json:"accuracy"`
+	Postfix  string `json:"postfix"`
+}
+
+type Section struct {
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	Tasks       []Task    `json:"tasks"`
+	SubSections []Section `json:"subSections,omitempty"`
+}
+
+type TasksResponse struct {
+	Sections []Section `json:"sections"`
 }
 
 // API functions
@@ -197,6 +251,72 @@ func claimDailyReward(token string) (*FarmDailyResponse, error) {
 	return &farmDailyResponse, nil
 }
 
+func getTasks(token string) ([]Section, error) {
+	url := "https://earn-domain.blum.codes/api/v1/tasks"
+	resp, err := getWithAuth(url, token)
+	if err != nil {
+		return nil, err
+	}
+
+	var sectionsResp []Section
+	err = json.Unmarshal(resp, &sectionsResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return sectionsResp, nil
+
+	//for _, section := range tasksResp.Sections {
+	//	fmt.Printf("Section Title: %s\n", section.Title)
+	//	if section.Description != nil {
+	//		fmt.Printf("Section Description: %s\n", *section.Description)
+	//	}
+	//	for _, task := range section.Tasks {
+	//		fmt.Printf("Task ID: %s\n", task.ID)
+	//		fmt.Printf("  Kind: %s\n", task.Kind)
+	//		fmt.Printf("  Type: %s\n", task.Type)
+	//		fmt.Printf("  Status: %s\n", task.Status)
+	//		fmt.Printf("  Validation Type: %s\n", task.ValidationType)
+	//		fmt.Printf("  Icon File Key: %s\n", task.IconFileKey)
+	//		if task.BannerFileKey != nil {
+	//			fmt.Printf("  Banner File Key: %s\n", *task.BannerFileKey)
+	//		}
+	//		fmt.Printf("  Title: %s\n", task.Title)
+	//		if task.ProductName != nil {
+	//			fmt.Printf("  Product Name: %s\n", *task.ProductName)
+	//		}
+	//		if task.Description != nil {
+	//			fmt.Printf("  Description: %s\n", *task.Description)
+	//		}
+	//		fmt.Printf("  Reward: %s\n", task.Reward)
+	//		for _, subTask := range task.SubTasks {
+	//			fmt.Printf("  SubTask ID: %s\n", subTask.ID)
+	//			fmt.Printf("    Kind: %s\n", subTask.Kind)
+	//			fmt.Printf("    Type: %s\n", subTask.Type)
+	//			fmt.Printf("    Status: %s\n", subTask.Status)
+	//			fmt.Printf("    Validation Type: %s\n", subTask.ValidationType)
+	//			fmt.Printf("    Icon File Key: %s\n", subTask.IconFileKey)
+	//			fmt.Printf("    Title: %s\n", subTask.Title)
+	//			if subTask.ProductName != nil {
+	//				fmt.Printf("    Product Name: %s\n", *subTask.ProductName)
+	//			}
+	//			fmt.Printf("    Reward: %s\n", subTask.Reward)
+	//		}
+	//		if task.ProgressTarget != nil {
+	//			fmt.Printf("  Progress Target - Target: %s, Progress: %s, Accuracy: %d, Postfix: %s\n",
+	//				task.ProgressTarget.Target, task.ProgressTarget.Progress, task.ProgressTarget.Accuracy, task.ProgressTarget.Postfix)
+	//		}
+	//		if task.SocialSubscription != nil {
+	//			fmt.Printf("  Social Subscription - Open In Telegram: %v, URL: %s\n",
+	//				task.SocialSubscription.OpenInTelegram, task.SocialSubscription.URL)
+	//		}
+	//		fmt.Printf("  Is Hidden: %v\n", task.IsHidden)
+	//		fmt.Printf("  Is Disclaimer Required: %v\n", task.IsDisclaimerRequired)
+	//	}
+	//}
+
+}
+
 //func claimFarmReward(token string) error {
 //	url := "https://game-domain.blum.codes/api/v1/farming/claim"
 //	resp, err := postWithAuth(url, token, nil)
@@ -322,56 +442,83 @@ func main() {
 	if err != nil {
 		log.Fatal("Error getting username:", err)
 	}
-
-	balance, err := getBalance(token)
-	if err != nil {
-		log.Fatal("Error getting balance:", err)
-	}
-
-	claimResult, err := claimFarmReward(token)
-	if err != nil {
-		log.Fatal("Error claim farm reward:", err)
-	}
-
-	dailyResult, err := claimDailyReward(token)
-	if err != nil {
-		log.Fatal("🚨 Error daily farming:", err)
-	}
+	//
+	//balance, err := getBalance(token)
+	//if err != nil {
+	//	log.Fatal("Error getting balance:", err)
+	//}
+	//
+	//claimResult, err := claimFarmReward(token)
+	//if err != nil {
+	//	log.Fatal("Error claim farm reward:", err)
+	//}
+	//
+	//dailyResult, err := claimDailyReward(token)
+	//if err != nil {
+	//	log.Fatal("🚨 Error daily farming:", err)
+	//}
 
 	fmt.Printf("👋 Hello, %s!\n", username)
-	fmt.Printf("💰 Your current BLUM balance is: %s\n", balance.AvailableBalance)
-	fmt.Printf("🎮 Your chances to play the game: %d\n", balance.PlayPasses)
-	fmt.Printf("🌾 Your farming balance: %s\n", balance.Farming.Balance)
-	fmt.Printf("🍄 Your claim farm reward: %s\n", claimResult)
-	fmt.Printf("🔃 Daily farming: %s\n", dailyResult.Message)
+	//fmt.Printf("💰 Your current BLUM balance is: %s\n", balance.AvailableBalance)
+	//fmt.Printf("🎮 Your chances to play the game: %d\n", balance.PlayPasses)
+	//fmt.Printf("🌾 Your farming balance: %s\n", balance.Farming.Balance)
+	//fmt.Printf("🍄 Your claim farm reward: %s\n", claimResult)
+	//fmt.Printf("🔃 Daily farming: %s\n", dailyResult.Message)
+	//
+	//if claimResult == "Need to start farm" {
+	//	farmingResult, _ := startFarmingSession(token)
+	//	fmt.Println(farmingResult.Balance)
+	//}
+	//
+	//if balance.PlayPasses > 0 {
+	//	infoGame, err := getIdGame(token)
+	//	if err != nil {
+	//		log.Fatal("🚨 Error getting idgame info:", err)
+	//	}
+	//
+	//	source := rand.NewSource(time.Now().UnixNano())
+	//	r := rand.New(source)
+	//
+	//	minValue := 200
+	//	maxValue := 240
+	//	points := r.Intn(maxValue-minValue+1) + minValue
+	//
+	//	fmt.Printf("💳 Your GameID: %s\n", infoGame.GameID)
+	//	fmt.Printf("🪙 Your Points: %d\n", points)
+	//	time.Sleep(60 * time.Second)
+	//	status, err := claimGamePoins(token, infoGame.GameID, points)
+	//	if err != nil {
+	//		log.Fatal("Error getting status info:", err)
+	//	}
+	//	fmt.Printf("⌛ Status Game: %s\n", status)
+	//} else {
+	//	fmt.Println("🎰 Turn over")
+	//}
 
-	if claimResult == "Need to start farm" {
-		farmingResult, _ := startFarmingSession(token)
-		fmt.Println(farmingResult.Balance)
+	tasksData, err := getTasks(token)
+	if err != nil {
+		log.Fatal("🚨 Error get tasks: ", err)
 	}
 
-	if balance.PlayPasses > 0 {
-		infoGame, err := getIdGame(token)
-		if err != nil {
-			log.Fatal("🚨 Error getting idgame info:", err)
+	for _, categoryTask := range tasksData {
+		if len(categoryTask.Tasks) > 0 && len(categoryTask.Tasks[0].SubTasks) > 0 {
+			//for (const task of category.tasks[0].subTasks)
+
+			fmt.Printf("🚨Category: %s\n", categoryTask.Title)
+			for _, task := range categoryTask.Tasks[0].SubTasks {
+				//if (task.status === 'FINISHED') {
+				//	console.log(
+				//		`⏭️  Task "${task.title}" is already completed.`.cyan
+				//	);
+				//}
+				if task.Status == "FINISHED" {
+					fmt.Printf("⏭️ %s already completed.\n", task.Title)
+				} else if task.Status == "NOT_STARTED" {
+					fmt.Printf("⏭️ %s not completed.\n", task.Title)
+				} else if task.Status == "STARTED" || task.Status == "READY_FOR_CLAIM" {
+					fmt.Printf("✅ %s has been claimed!\n", task.Title)
+				}
+			}
 		}
-
-		source := rand.NewSource(time.Now().UnixNano())
-		r := rand.New(source)
-
-		minValue := 200
-		maxValue := 240
-		points := r.Intn(maxValue-minValue+1) + minValue
-
-		fmt.Printf("💳 Your GameID: %s\n", infoGame.GameID)
-		fmt.Printf("🪙 Your Points: %d\n", points)
-		time.Sleep(60 * time.Second)
-		status, err := claimGamePoins(token, infoGame.GameID, points)
-		if err != nil {
-			log.Fatal("Error getting status info:", err)
-		}
-		fmt.Printf("⌛ Status Game: %s\n", status)
-	} else {
-		fmt.Println("🎰 Turn over")
 	}
 }
