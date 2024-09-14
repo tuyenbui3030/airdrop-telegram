@@ -1,0 +1,26 @@
+name: Run Blum Airdrop Every60 Minutes
+
+on:
+  schedule:
+    - cron: '*/60 * * * *'  # 60 minutes
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.23'
+
+      - name: Create .env file
+        run: |
+          echo "QUERY_ID=${{ secrets.QUERY_ID }}" >> .env
+
+      - name: Run Blum Airdrop
+        run: go run blum.go
