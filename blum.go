@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -116,6 +115,23 @@ type Section struct {
 
 type TasksResponse struct {
 	Sections []Section `json:"sections"`
+}
+
+type StartTaskResponse struct {
+	ID                   string             `json:"id"`
+	Kind                 string             `json:"kind"`
+	Type                 string             `json:"type"`
+	Status               string             `json:"status"`
+	ValidationType       string             `json:"validationType"`
+	IconFileKey          string             `json:"iconFileKey"`
+	BannerFileKey        *string            `json:"bannerFileKey"` // Nullable field
+	Title                string             `json:"title"`
+	ProductName          *string            `json:"productName"` // Nullable field
+	Description          *string            `json:"description"` // Nullable field
+	Reward               string             `json:"reward"`
+	SocialSubscription   SocialSubscription `json:"socialSubscription"`
+	IsHidden             bool               `json:"isHidden"`
+	IsDisclaimerRequired bool               `json:"isDisclaimerRequired"`
 }
 
 // API functions
@@ -265,56 +281,22 @@ func getTasks(token string) ([]Section, error) {
 	}
 
 	return sectionsResp, nil
+}
 
-	//for _, section := range tasksResp.Sections {
-	//	fmt.Printf("Section Title: %s\n", section.Title)
-	//	if section.Description != nil {
-	//		fmt.Printf("Section Description: %s\n", *section.Description)
-	//	}
-	//	for _, task := range section.Tasks {
-	//		fmt.Printf("Task ID: %s\n", task.ID)
-	//		fmt.Printf("  Kind: %s\n", task.Kind)
-	//		fmt.Printf("  Type: %s\n", task.Type)
-	//		fmt.Printf("  Status: %s\n", task.Status)
-	//		fmt.Printf("  Validation Type: %s\n", task.ValidationType)
-	//		fmt.Printf("  Icon File Key: %s\n", task.IconFileKey)
-	//		if task.BannerFileKey != nil {
-	//			fmt.Printf("  Banner File Key: %s\n", *task.BannerFileKey)
-	//		}
-	//		fmt.Printf("  Title: %s\n", task.Title)
-	//		if task.ProductName != nil {
-	//			fmt.Printf("  Product Name: %s\n", *task.ProductName)
-	//		}
-	//		if task.Description != nil {
-	//			fmt.Printf("  Description: %s\n", *task.Description)
-	//		}
-	//		fmt.Printf("  Reward: %s\n", task.Reward)
-	//		for _, subTask := range task.SubTasks {
-	//			fmt.Printf("  SubTask ID: %s\n", subTask.ID)
-	//			fmt.Printf("    Kind: %s\n", subTask.Kind)
-	//			fmt.Printf("    Type: %s\n", subTask.Type)
-	//			fmt.Printf("    Status: %s\n", subTask.Status)
-	//			fmt.Printf("    Validation Type: %s\n", subTask.ValidationType)
-	//			fmt.Printf("    Icon File Key: %s\n", subTask.IconFileKey)
-	//			fmt.Printf("    Title: %s\n", subTask.Title)
-	//			if subTask.ProductName != nil {
-	//				fmt.Printf("    Product Name: %s\n", *subTask.ProductName)
-	//			}
-	//			fmt.Printf("    Reward: %s\n", subTask.Reward)
-	//		}
-	//		if task.ProgressTarget != nil {
-	//			fmt.Printf("  Progress Target - Target: %s, Progress: %s, Accuracy: %d, Postfix: %s\n",
-	//				task.ProgressTarget.Target, task.ProgressTarget.Progress, task.ProgressTarget.Accuracy, task.ProgressTarget.Postfix)
-	//		}
-	//		if task.SocialSubscription != nil {
-	//			fmt.Printf("  Social Subscription - Open In Telegram: %v, URL: %s\n",
-	//				task.SocialSubscription.OpenInTelegram, task.SocialSubscription.URL)
-	//		}
-	//		fmt.Printf("  Is Hidden: %v\n", task.IsHidden)
-	//		fmt.Printf("  Is Disclaimer Required: %v\n", task.IsDisclaimerRequired)
-	//	}
-	//}
+func startTask(token string, taskId string, title string) (*StartTaskResponse, error) {
+	url := fmt.Sprintf("https://earn-domain.blum.codes/api/v1/tasks/%s/start", taskId)
+	resp, err := postWithAuth(url, token, nil)
+	if err != nil {
+		return nil, err
+	}
 
+	var startTaskResp StartTaskResponse
+	err = json.Unmarshal(resp, &startTaskResp)
+	if err != nil {
+		fmt.Printf("🚨 Start task %s failed, because the task is not started yet.", title)
+		return nil, err
+	}
+	return &startTaskResp, nil
 }
 
 //func claimFarmReward(token string) error {
@@ -421,7 +403,7 @@ func postWithAuth(url, token string, payload interface{}) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 // Main function
@@ -500,25 +482,28 @@ func main() {
 		log.Fatal("🚨 Error get tasks: ", err)
 	}
 
+	fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	startResp, err := startTask(token, "d95d3299-e035-4bf6-a7ca-0f71578e9197", "Secure your Crypto!")
+	if err != nil {
+		log.Fatal("🚨 Error get tasks: ", err)
+	}
+	fmt.Printf("Response: %s\n", startResp.ID)
+	fmt.Println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
 	for _, categoryTask := range tasksData {
 		if len(categoryTask.Tasks) > 0 && len(categoryTask.Tasks[0].SubTasks) > 0 {
 			//for (const task of category.tasks[0].subTasks)
 
 			fmt.Printf("🚨Category: %s\n", categoryTask.Title)
-			for _, task := range categoryTask.Tasks[0].SubTasks {
-				//if (task.status === 'FINISHED') {
-				//	console.log(
-				//		`⏭️  Task "${task.title}" is already completed.`.cyan
-				//	);
-				//}
-				if task.Status == "FINISHED" {
-					fmt.Printf("⏭️ %s already completed.\n", task.Title)
-				} else if task.Status == "NOT_STARTED" {
-					fmt.Printf("⏭️ %s not completed.\n", task.Title)
-				} else if task.Status == "STARTED" || task.Status == "READY_FOR_CLAIM" {
-					fmt.Printf("✅ %s has been claimed!\n", task.Title)
-				}
-			}
+			//for _, task := range categoryTask.Tasks[0].SubTasks {
+			//	if task.Status == "FINISHED" {
+			//		fmt.Printf("⏭️ %s already completed.\n", task.Title)
+			//	} else if task.Status == "NOT_STARTED" {
+			//		fmt.Printf("⏭️ %s not completed.\n", task.Title)
+			//	} else if task.Status == "STARTED" || task.Status == "READY_FOR_CLAIM" {
+			//		fmt.Printf("✅ %s has been claimed!\n", task.Title)
+			//	}
+			//}
 		}
 	}
 }
