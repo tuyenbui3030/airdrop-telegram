@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -62,6 +61,80 @@ type GamePlayResponse struct {
 type GameClaimPayload struct {
 	GameID string `json:"gameId"`
 	Points int    `json:"points"`
+}
+
+type Task struct {
+	ID                   string              `json:"id"`
+	Kind                 string              `json:"kind"`
+	Type                 string              `json:"type"`
+	Status               string              `json:"status"`
+	ValidationType       string              `json:"validationType"`
+	IconFileKey          string              `json:"iconFileKey"`
+	BannerFileKey        *string             `json:"bannerFileKey,omitempty"`
+	Title                string              `json:"title"`
+	ProductName          *string             `json:"productName,omitempty"`
+	Description          *string             `json:"description,omitempty"`
+	Reward               string              `json:"reward"`
+	SubTasks             []SubTask           `json:"subTasks,omitempty"`
+	ProgressTarget       *ProgressTarget     `json:"progressTarget,omitempty"`
+	SocialSubscription   *SocialSubscription `json:"socialSubscription,omitempty"`
+	IsHidden             bool                `json:"isHidden"`
+	IsDisclaimerRequired bool                `json:"isDisclaimerRequired"`
+}
+
+type SubTask struct {
+	ID                   string              `json:"id"`
+	Kind                 string              `json:"kind"`
+	Type                 string              `json:"type"`
+	Status               string              `json:"status"`
+	ValidationType       string              `json:"validationType"`
+	IconFileKey          string              `json:"iconFileKey"`
+	Title                string              `json:"title"`
+	ProductName          *string             `json:"productName,omitempty"`
+	Reward               string              `json:"reward"`
+	SocialSubscription   *SocialSubscription `json:"socialSubscription,omitempty"`
+	IsDisclaimerRequired bool                `json:"isDisclaimerRequired"`
+}
+
+type SocialSubscription struct {
+	OpenInTelegram bool   `json:"openInTelegram"`
+	URL            string `json:"url"`
+}
+
+type ProgressTarget struct {
+	Target   string `json:"target"`
+	Progress string `json:"progress"`
+	Accuracy int    `json:"accuracy"`
+	Postfix  string `json:"postfix"`
+}
+
+type Section struct {
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	Tasks       []Task    `json:"tasks"`
+	SubSections []Section `json:"subSections,omitempty"`
+}
+
+type TasksResponse struct {
+	Sections []Section `json:"sections"`
+}
+
+type TaskResponse struct {
+	ID                   string             `json:"id"`
+	Kind                 string             `json:"kind"`
+	Type                 string             `json:"type"`
+	Status               string             `json:"status"`
+	ValidationType       string             `json:"validationType"`
+	IconFileKey          string             `json:"iconFileKey"`
+	BannerFileKey        *string            `json:"bannerFileKey"` // Nullable field
+	Title                string             `json:"title"`
+	ProductName          *string            `json:"productName"` // Nullable field
+	Description          *string            `json:"description"` // Nullable field
+	Reward               string             `json:"reward"`
+	SocialSubscription   SocialSubscription `json:"socialSubscription"`
+	IsHidden             bool               `json:"isHidden"`
+	IsDisclaimerRequired bool               `json:"isDisclaimerRequired"`
+	Messages             string             `json:"message"`
 }
 
 // API functions
@@ -197,6 +270,54 @@ func claimDailyReward(token string) (*FarmDailyResponse, error) {
 	return &farmDailyResponse, nil
 }
 
+func getTasks(token string) ([]Section, error) {
+	url := "https://earn-domain.blum.codes/api/v1/tasks"
+	resp, err := getWithAuth(url, token)
+	if err != nil {
+		return nil, err
+	}
+
+	var sectionsResp []Section
+	err = json.Unmarshal(resp, &sectionsResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return sectionsResp, nil
+}
+
+func startTask(token string, taskId string, title string) (*TaskResponse, error) {
+	url := fmt.Sprintf("https://earn-domain.blum.codes/api/v1/tasks/%s/start", taskId)
+	resp, err := postWithAuth(url, token, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var startTaskResp TaskResponse
+	err = json.Unmarshal(resp, &startTaskResp)
+	if err != nil {
+		fmt.Printf("🚨 Start task %s failed, because the task is not started yet.", title)
+		return nil, err
+	}
+	return &startTaskResp, nil
+}
+
+func claimTaskReward(token string, taskId string, title string) (*TaskResponse, error) {
+	url := fmt.Sprintf("https://earn-domain.blum.codes/api/v1/tasks/%s/start", taskId)
+	resp, err := postWithAuth(url, token, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var claimTaskResp TaskResponse
+	err = json.Unmarshal(resp, &claimTaskResp)
+	if err != nil {
+		fmt.Printf("🚨 Start task %s failed, because the task is not started yet.", title)
+		return nil, err
+	}
+	return &claimTaskResp, nil
+}
+
 //func claimFarmReward(token string) error {
 //	url := "https://game-domain.blum.codes/api/v1/farming/claim"
 //	resp, err := postWithAuth(url, token, nil)
@@ -301,7 +422,7 @@ func postWithAuth(url, token string, payload interface{}) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 // Main function
@@ -322,7 +443,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error getting username:", err)
 	}
-
+	//
 	balance, err := getBalance(token)
 	if err != nil {
 		log.Fatal("Error getting balance:", err)
@@ -373,5 +494,45 @@ func main() {
 		fmt.Printf("⌛ Status Game: %s\n", status)
 	} else {
 		fmt.Println("🎰 Turn over")
+	}
+
+	tasksData, err := getTasks(token)
+	if err != nil {
+		log.Fatal("🚨 Error get tasks: ", err)
+	}
+
+	for _, categoryTask := range tasksData {
+		if len(categoryTask.Tasks) > 0 && len(categoryTask.Tasks[0].SubTasks) > 0 {
+			fmt.Printf("🚨Category: %s\n", categoryTask.Title)
+			for _, task := range categoryTask.Tasks[0].SubTasks {
+				if task.Status == "FINISHED" {
+					fmt.Printf("⏭️ %s already completed.\n", task.Title)
+				} else if task.Status == "NOT_STARTED" {
+					fmt.Printf("⏭️ %s - ID: %s not completed.\n", task.Title, task.ID)
+					startResp, err := startTask(token, task.ID, task.Title)
+					if err != nil {
+						log.Fatal("🚨 Error get tasks: ", err)
+					}
+
+					if startResp.Title != "" {
+						claimResp, err := claimTaskReward(token, task.ID, task.Title)
+
+						if err != nil {
+							log.Fatal("🚨 Error claim task: ", err)
+						}
+						if claimResp.Title != "" {
+							fmt.Printf("✅ Task %s has been claimed!\n", claimResp.Title)
+						} else {
+							fmt.Printf("🚫 Unable to claim task %s, please try to claim it manually\n", task.Title)
+						}
+					} else {
+						fmt.Printf("🚨 Start task %s failed, because the task is not started yet.\n", startResp.Messages)
+					}
+
+				} else if task.Status == "STARTED" || task.Status == "READY_FOR_CLAIM" {
+					fmt.Printf("✅ %s has been claimed!\n", task.Title)
+				}
+			}
+		}
 	}
 }
