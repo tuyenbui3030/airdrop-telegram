@@ -456,7 +456,7 @@ func main() {
 
 	dailyResult, err := claimDailyReward(token)
 	if err != nil {
-		log.Fatal("🚨 Error daily farming:", err)
+		fmt.Printf("🚨 Error daily farming:", err)
 	}
 
 	fmt.Printf("👋 Hello, %s!\n", username)
