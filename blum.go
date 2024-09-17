@@ -9,8 +9,10 @@ import (
 	"github.com/joho/godotenv"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 )
 
 // API response structures
@@ -447,6 +449,31 @@ func main() {
 	if claimResult == "Need to start farm" {
 		farmingResult, _ := startFarmingSession(token)
 		fmt.Println(farmingResult.Balance)
+	}
+
+	if balance.PlayPasses > 0 {
+		infoGame, err := getIdGame(token)
+		if err != nil {
+			log.Fatal("🚨 Error getting id_game info:", err)
+		}
+
+		source := rand.NewSource(time.Now().UnixNano())
+		r := rand.New(source)
+
+		minValue := 200
+		maxValue := 240
+		points := r.Intn(maxValue-minValue+1) + minValue
+
+		fmt.Printf("💳 Your GameID: %s\n", infoGame.GameID)
+		fmt.Printf("🪙 Your Points: %d\n", points)
+		time.Sleep(60 * time.Second)
+		status, err := claimGamePoins(token, infoGame.GameID, points)
+		if err != nil {
+			log.Fatal("Error getting status info:", err)
+		}
+		fmt.Printf("⌛ Status Game: %s\n", status)
+	} else {
+		fmt.Println("🎰 Turn over")
 	}
 
 	tasksData, err := getTasks(token)
