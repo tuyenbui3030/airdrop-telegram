@@ -434,7 +434,7 @@ func main() {
 
 	dailyResult, err := claimDailyReward(token)
 	if err != nil {
-		fmt.Printf("🚨 Error daily farming:", err)
+		log.Fatal("🚨 Error daily farming:", err)
 	}
 
 	fmt.Printf("👋 Hello, %s!\n", username)
@@ -448,31 +448,6 @@ func main() {
 		farmingResult, _ := startFarmingSession(token)
 		fmt.Println(farmingResult.Balance)
 	}
-
-	//if balance.PlayPasses > 0 {
-	//	infoGame, err := getIdGame(token)
-	//	if err != nil {
-	//		log.Fatal("🚨 Error getting idgame info:", err)
-	//	}
-	//
-	//	source := rand.NewSource(time.Now().UnixNano())
-	//	r := rand.New(source)
-	//
-	//	minValue := 200
-	//	maxValue := 240
-	//	points := r.Intn(maxValue-minValue+1) + minValue
-	//
-	//	fmt.Printf("💳 Your GameID: %s\n", infoGame.GameID)
-	//	fmt.Printf("🪙 Your Points: %d\n", points)
-	//	time.Sleep(60 * time.Second)
-	//	status, err := claimGamePoins(token, infoGame.GameID, points)
-	//	if err != nil {
-	//		log.Fatal("Error getting status info:", err)
-	//	}
-	//	fmt.Printf("⌛ Status Game: %s\n", status)
-	//} else {
-	//	fmt.Println("🎰 Turn over")
-	//}
 
 	tasksData, err := getTasks(token)
 	if err != nil {
