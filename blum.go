@@ -75,11 +75,16 @@ type Task struct {
 	ProductName          *string             `json:"productName,omitempty"`
 	Description          *string             `json:"description,omitempty"`
 	Reward               string              `json:"reward"`
-	SubTasks             []SubTask           `json:"subTasks,omitempty"`
+	SubTasks             []SubTask           `json:"subTasks,omitempty,task"`
 	ProgressTarget       *ProgressTarget     `json:"progressTarget,omitempty"`
 	SocialSubscription   *SocialSubscription `json:"socialSubscription,omitempty"`
 	IsHidden             bool                `json:"isHidden"`
 	IsDisclaimerRequired bool                `json:"isDisclaimerRequired"`
+}
+
+type SubSection struct {
+	Title string `json:"title"`
+	Tasks []Task `json:"tasks"`
 }
 
 type SubTask struct {
@@ -109,10 +114,10 @@ type ProgressTarget struct {
 }
 
 type Section struct {
-	Title       string    `json:"title"`
-	Description *string   `json:"description,omitempty"`
-	Tasks       []Task    `json:"tasks"`
-	SubSections []Section `json:"subSections,omitempty"`
+	Title       string       `json:"title"`
+	Description *string      `json:"description,omitempty"`
+	Tasks       []Task       `json:"tasks"`
+	SubSections []SubSection `json:"subSections"`
 }
 
 type TasksResponse struct {
@@ -303,7 +308,7 @@ func startTask(token string, taskId string, title string) (*TaskResponse, error)
 }
 
 func claimTaskReward(token string, taskId string, title string) (*TaskResponse, error) {
-	url := fmt.Sprintf("https://earn-domain.blum.codes/api/v1/tasks/%s/start", taskId)
+	url := fmt.Sprintf("https://earn-domain.blum.codes/api/v1/tasks/%s/claim", taskId)
 	resp, err := postWithAuth(url, token, nil)
 	if err != nil {
 		return nil, err
@@ -317,31 +322,6 @@ func claimTaskReward(token string, taskId string, title string) (*TaskResponse, 
 	}
 	return &claimTaskResp, nil
 }
-
-//func claimFarmReward(token string) error {
-//	url := "https://game-domain.blum.codes/api/v1/farming/claim"
-//	resp, err := postWithAuth(url, token, nil)
-//	if err != nil {
-//		return fmt.Errorf("error claiming farm reward: %w", err)
-//	}
-//
-//	var rewardResp FarmRewardResponse
-//
-//	err = json.Unmarshal(resp, &rewardResp)
-//	if err != nil {
-//		return fmt.Errorf("error unmarshaling farm reward response: %w", err)
-//	}
-//	fmt.Printf(rewardResp.Message)
-//
-//	if rewardResp.Message == "It's too early to claim" {
-//		return fmt.Errorf("🚨 Claim failed! It's too early to claim")
-//	} else if rewardResp.Message == "Need to start farm" {
-//		return fmt.Errorf("🚨 Claim failed! Need to start farm")
-//	}
-//
-//	fmt.Println("✅ Farm reward claimed successfully!")
-//	return nil
-//}
 
 // Helper functions for HTTP requests
 func postJSON(url string, payload interface{}) ([]byte, error) {
@@ -456,7 +436,7 @@ func main() {
 
 	dailyResult, err := claimDailyReward(token)
 	if err != nil {
-		fmt.Printf("🚨 Error daily farming:", err)
+		log.Fatal("🚨 Error daily farming:", err)
 	}
 
 	fmt.Printf("👋 Hello, %s!\n", username)
@@ -474,7 +454,7 @@ func main() {
 	if balance.PlayPasses > 0 {
 		infoGame, err := getIdGame(token)
 		if err != nil {
-			log.Fatal("🚨 Error getting idgame info:", err)
+			log.Fatal("🚨 Error getting id_game info:", err)
 		}
 
 		source := rand.NewSource(time.Now().UnixNano())
@@ -530,7 +510,61 @@ func main() {
 					}
 
 				} else if task.Status == "STARTED" || task.Status == "READY_FOR_CLAIM" {
-					fmt.Printf("✅ %s has been claimed!\n", task.Title)
+					claimResp, err := claimTaskReward(token, task.ID, task.Title)
+					if err != nil {
+						log.Fatal("🚨 Error claim task: ", err)
+					}
+					if claimResp.Title != "" {
+						fmt.Printf("✅ Task %s has been claimed!\n", claimResp.Title)
+					} else {
+						fmt.Printf("🚫 Unable to claim task %s, please try to claim it manually\n", task.Title)
+					}
+				}
+			}
+		}
+
+		if len(categoryTask.SubSections) > 0 && len(categoryTask.SubSections[0].Tasks) > 0 {
+			fmt.Println("🚨Category: SubSections")
+			for _, subSection := range categoryTask.SubSections {
+				for _, task := range subSection.Tasks {
+					//fmt.Printf("Hehehe, %s\n", task.ID)
+					if task.Status == "FINISHED" {
+						fmt.Printf("⏭️ Task %s is already completed.\n", task.Title)
+					} else if task.Status == "NOT_STARTED" {
+						fmt.Printf("⏳ Task %s  is not started yet. Starting now...\n", task.Title)
+
+						startedTask, err := startTask(token, task.ID, task.Title)
+						if err != nil {
+							log.Fatal("🚨 Error get tasks: ", err)
+						}
+
+						if startedTask.Title != "" {
+							claimedTask, err := claimTaskReward(token, task.ID, task.Title)
+
+							if err != nil {
+								fmt.Printf("🚫 Unable to claim task %s, please try to claim it manually. ", task.Title)
+								return
+							}
+							if claimedTask.Title != "" {
+								fmt.Printf("✅ Task %s has been claimed!\n", claimedTask.Title)
+							} else {
+								fmt.Printf("🚫 Unable to claim task %s, please try to claim it manually\n", task.Title)
+							}
+						} else {
+							fmt.Printf("🚨 Start task %s failed, because the task is not started yet.\n", startedTask.Messages)
+						}
+					} else if task.Status == "STARTED" || task.Status == "READY_FOR_CLAIM" {
+						//fmt.Printf("✅ %s has been claimed!\n", task.Title)
+						claimResp, err := claimTaskReward(token, task.ID, task.Title)
+						if err != nil {
+							log.Fatal("🚨 Error claim task: ", err)
+						}
+						if claimResp.Title != "" {
+							fmt.Printf("✅ Task %s has been claimed!\n", claimResp.Title)
+						} else {
+							fmt.Printf("🚫 Unable to claim task %s, please try to claim it manually\n", task.Title)
+						}
+					}
 				}
 			}
 		}
