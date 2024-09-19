@@ -460,8 +460,8 @@ func main() {
 		source := rand.NewSource(time.Now().UnixNano())
 		r := rand.New(source)
 
-		minValue := 200
-		maxValue := 240
+		minValue := 240
+		maxValue := 280
 		points := r.Intn(maxValue-minValue+1) + minValue
 
 		fmt.Printf("💳 Your GameID: %s\n", infoGame.GameID)
