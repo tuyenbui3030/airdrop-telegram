@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Send a request using curl
+        run: |
+          curl https://idx.relaxcoding.com
+          
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -24,3 +28,7 @@ jobs:
 
       - name: Run Blum Airdrop
         run: go run blum.go
+        
+      - name: Send a request using curl
+        run: |
+          curl https://idx.relaxcoding.com
