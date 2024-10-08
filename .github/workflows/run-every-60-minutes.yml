@@ -28,7 +28,3 @@ jobs:
 
       - name: Run Blum Airdrop
         run: go run blum.go
-        
-      - name: Send a request using curl
-        run: |
-          curl https://idx.relaxcoding.com
